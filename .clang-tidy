@@ -1,0 +1,239 @@
+---
+# Target: LLVM/Clang 22.1 or later with C++20 or later.
+# Query-based CustomChecks require --experimental-custom-checks.
+# For the slower full-CI pass, additionally enable:
+#   clang-analyzer-*,bugprone-unchecked-optional-access
+
+Checks:
+  - '-*'
+
+  # High-signal correctness checks.
+  - 'bugprone-*'
+  - '-bugprone-easily-swappable-parameters'
+  - '-bugprone-throw-keyword-missing'
+  - '-bugprone-unsafe-functions'
+  - '-bugprone-unchecked-optional-access'
+  - 'concurrency-*'
+
+  # Performance checks are useful for DSP code, but remain warnings initially.
+  - 'performance-*'
+  - '-performance-enum-size'
+
+  # Selected C++ Core Guidelines checks. The low-level pointer, array, union,
+  # allocation, and SIMD restrictions are deliberately not enabled globally.
+  - 'cppcoreguidelines-avoid-non-const-global-variables'
+  - 'cppcoreguidelines-interfaces-global-init'
+  - 'cppcoreguidelines-missing-std-forward'
+  - 'cppcoreguidelines-no-suspend-with-lock'
+  - 'cppcoreguidelines-pro-type-member-init'
+  - 'cppcoreguidelines-rvalue-reference-param-not-moved'
+  - 'cppcoreguidelines-slicing'
+  - 'cppcoreguidelines-special-member-functions'
+  - 'cppcoreguidelines-use-enum-class'
+  - 'cppcoreguidelines-virtual-class-destructor'
+
+  # General correctness and maintainability.
+  - 'misc-const-correctness'
+  - 'misc-definitions-in-headers'
+  - 'misc-header-include-cycle'
+  - 'misc-include-cleaner'
+  - 'misc-redundant-expression'
+  # Disabled together because the aliases share the implementation affected by
+  # glibc 2.44 nested variadic assert false positives. Re-enable after upstream
+  # issue https://github.com/llvm/llvm-project/issues/213560 is resolved.
+  - '-misc-static-assert'
+  - '-cert-dcl03-c'
+  - '-hicpp-static-assert'
+  - 'misc-throw-by-value-catch-by-reference'
+  - 'misc-unconventional-assign-operator'
+  - 'misc-unused-alias-decls'
+  - 'misc-unused-using-decls'
+
+  # The stable Clang 22 spelling for explicit-constructor diagnostics.
+  - 'google-explicit-constructor'
+
+  # Conservative modernizations suitable for a C++20-or-later codebase.
+  - 'modernize-avoid-bind'
+  - 'modernize-avoid-c-style-cast'
+  - 'modernize-use-constraints'
+  - 'modernize-use-default-member-init'
+  - 'modernize-use-equals-default'
+  - 'modernize-use-equals-delete'
+  - 'modernize-use-nodiscard'
+  - 'modernize-use-nullptr'
+  - 'modernize-use-override'
+  - 'modernize-use-scoped-lock'
+  - 'modernize-use-std-numbers'
+  - 'modernize-use-trailing-return-type'
+  - 'modernize-use-using'
+
+  # Portability checks that do not prohibit explicit platform SIMD.
+  - 'portability-avoid-pragma-once'
+  - 'portability-std-allocator-const'
+  - 'portability-template-virtual-member-function'
+
+  # Readability rules with relatively objective outcomes.
+  - 'readability-braces-around-statements'
+  - 'readability-container-contains'
+  - 'readability-container-size-empty'
+  - 'readability-duplicate-include'
+  - 'readability-identifier-naming'
+  - 'readability-inconsistent-declaration-parameter-name'
+  - 'readability-make-member-function-const'
+  - 'readability-misleading-indentation'
+  - 'readability-redundant-casting'
+  - 'readability-redundant-declaration'
+  - 'readability-redundant-function-ptr-dereference'
+  - 'readability-redundant-member-init'
+  - 'readability-redundant-smartptr-get'
+  - 'readability-redundant-string-cstr'
+  - 'readability-redundant-string-init'
+  - 'readability-redundant-typename'
+  - 'readability-simplify-boolean-expr'
+  - 'readability-static-accessed-through-instance'
+  - 'readability-string-compare'
+
+  # Enforces that mutable static data members are private.
+  - 'custom-non-private-mutable-static-data-member'
+
+# Correctness and explicitly chosen style rules fail CI. Narrowing conversions
+# remain warnings during rollout; remove their negative entry when the codebase
+# is ready to require an explicit cast for every intentional conversion.
+WarningsAsErrors: >
+  clang-analyzer-*,
+  bugprone-*,
+  -bugprone-narrowing-conversions,
+  concurrency-*,
+  readability-identifier-naming,
+  modernize-use-trailing-return-type,
+  custom-*,
+  portability-avoid-pragma-once,
+
+# Diagnose project headers while ignoring generated and vendored trees.
+HeaderFilterRegex: '.*'
+ExcludeHeaderFilterRegex: '(^|.*[\\/])(build|third_party|external|vendor)([\\/].*)?$'
+SystemHeaders: false
+FormatStyle: file
+InheritParentConfig: false
+
+CheckOptions:
+  # Assert expressions must not change release-build behavior. Function calls
+  # are not presumed impure, avoiding warnings for predicates such as IsValid().
+  bugprone-assert-side-effect.AssertMacros: 'assert,jassert'
+  bugprone-assert-side-effect.CheckFunctionCalls: 'false'
+
+  # Keep narrowing diagnostics useful without repeating them for every template
+  # instantiation. These remain warnings as configured above.
+  bugprone-narrowing-conversions.WarnWithinTemplateInstantiation: 'false'
+  bugprone-narrowing-conversions.WarnOnEquivalentBitWidth: 'true'
+
+  # Mutable namespace-scope state is disallowed, including internal-linkage and
+  # thread-local state. Mutable class statics are handled by the custom check.
+  cppcoreguidelines-avoid-non-const-global-variables.AllowInternalLinkage: 'false'
+
+  readability-braces-around-statements.ShortStatementLines: '0'
+
+  # Require trailing returns for named functions. Lambda return types remain
+  # deduced unless the author writes one explicitly.
+  modernize-use-trailing-return-type.TransformFunctions: 'true'
+  modernize-use-trailing-return-type.TransformLambdas: 'none'
+
+  # Naming policy.
+  readability-identifier-naming.AggressiveDependentMemberLookup: 'false'
+  readability-identifier-naming.CheckAnonFieldInParent: 'true'
+  readability-identifier-naming.IgnoreMainLikeFunctions: 'true'
+
+  # Types.
+  readability-identifier-naming.AbstractClassCase: CamelCase
+  readability-identifier-naming.ClassCase: CamelCase
+  readability-identifier-naming.StructCase: CamelCase
+  readability-identifier-naming.UnionCase: CamelCase
+  readability-identifier-naming.EnumCase: CamelCase
+  readability-identifier-naming.ConceptCase: lower_case
+
+  # Enumerators: kPascalCase for scoped and unscoped enums.
+  readability-identifier-naming.EnumConstantCase: CamelCase
+  readability-identifier-naming.EnumConstantPrefix: k
+  readability-identifier-naming.ScopedEnumConstantCase: CamelCase
+  readability-identifier-naming.ScopedEnumConstantPrefix: k
+
+  # Templates: type-like parameters are PascalCase; values are snake_case.
+  readability-identifier-naming.TypeTemplateParameterCase: CamelCase
+  readability-identifier-naming.TemplateTemplateParameterCase: CamelCase
+  readability-identifier-naming.ValueTemplateParameterCase: lower_case
+
+  # Functions and methods: PascalCase, with getFoo/setFoo also permitted.
+  readability-identifier-naming.FunctionCase: CamelCase
+  readability-identifier-naming.GlobalFunctionCase: CamelCase
+  readability-identifier-naming.MethodCase: CamelCase
+  readability-identifier-naming.MethodIgnoredRegexp: '^(get|set)[A-Z][A-Za-z0-9]*$'
+
+  # Parameters and variables.
+  readability-identifier-naming.ParameterCase: lower_case
+  readability-identifier-naming.LocalVariableCase: lower_case
+  readability-identifier-naming.StaticVariableCase: lower_case
+  readability-identifier-naming.GlobalVariableCase: lower_case
+  readability-identifier-naming.VariableCase: lower_case
+
+  # Non-static data members are snake_case. Private fields have a trailing
+  # underscore; public and protected fields do not.
+  readability-identifier-naming.MemberCase: lower_case
+  readability-identifier-naming.PublicMemberCase: lower_case
+  readability-identifier-naming.ProtectedMemberCase: lower_case
+  readability-identifier-naming.PrivateMemberCase: lower_case
+  readability-identifier-naming.PrivateMemberSuffix: '_'
+
+  # Mutable static class/struct data members are private snake_case_. The suffix
+  # is enforced here; access control is enforced by the custom check below.
+  readability-identifier-naming.ClassMemberCase: lower_case
+  readability-identifier-naming.ClassMemberSuffix: '_'
+
+  # Static constants and constexpr values are kPascalCase.
+  readability-identifier-naming.ClassConstantCase: CamelCase
+  readability-identifier-naming.ClassConstantPrefix: k
+  readability-identifier-naming.ClassConstexprCase: CamelCase
+  readability-identifier-naming.ClassConstexprPrefix: k
+  readability-identifier-naming.StaticConstantCase: CamelCase
+  readability-identifier-naming.StaticConstantPrefix: k
+  readability-identifier-naming.StaticConstexprVariableCase: CamelCase
+  readability-identifier-naming.StaticConstexprVariablePrefix: k
+
+  # At namespace scope, clang-tidy classifies constants as global before it
+  # considers the static-storage categories. Configure both paths so file-local
+  # and externally linked constants consistently use kPascalCase.
+  readability-identifier-naming.GlobalConstantCase: CamelCase
+  readability-identifier-naming.GlobalConstantPrefix: k
+  readability-identifier-naming.GlobalConstexprVariableCase: CamelCase
+  readability-identifier-naming.GlobalConstexprVariablePrefix: k
+
+  # Namespaces and preprocessor definitions.
+  readability-identifier-naming.NamespaceCase: lower_case
+  readability-identifier-naming.InlineNamespaceCase: lower_case
+  readability-identifier-naming.MacroDefinitionCase: UPPER_CASE
+
+  # Both `sample_t` and `Sample` are accepted for typedefs and type aliases.
+  readability-identifier-naming.TypedefCase: lower_case
+  readability-identifier-naming.TypedefSuffix: '_t'
+  readability-identifier-naming.TypedefIgnoredRegexp: '^[A-Z][A-Za-z0-9]*$'
+  readability-identifier-naming.TypeAliasCase: lower_case
+  readability-identifier-naming.TypeAliasSuffix: '_t'
+  readability-identifier-naming.TypeAliasIgnoredRegexp: '^[A-Z][A-Za-z0-9]*$'
+
+CustomChecks:
+  - Name: non-private-mutable-static-data-member
+    # hasAncestor covers member variable templates; excluding function
+    # ancestors prevents function-local statics from becoming false positives.
+    Query: |
+      match varDecl(
+        hasAncestor(cxxRecordDecl()),
+        unless(hasAncestor(functionDecl())),
+        unless(isPrivate()),
+        unless(hasType(isConstQualified())),
+        unless(isTemplateInstantiation()),
+        unless(isImplicit())
+      ).bind("member")
+    Diagnostic:
+      - BindName: member
+        Message: mutable static data members must be private
+        Level: Warning
+...
