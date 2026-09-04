@@ -1,2 +1,14 @@
 CompileFlags:
     CompilationDatabase: out/build/clang
+    Remove:
+        - -Werror
+
+Diagnostics:
+    MissingIncludes: Strict
+    UnusedIncludes: Strict
+
+Style:
+    FullyQualifiedNamespaces:
+        - td
+    QuotedHeaders:
+        - 'audio_plugin_demo/.*'
